@@ -3,7 +3,7 @@
 // @author Domintes
 // @namespace https://github.com/Domintes
 // @icon https://i.ibb.co/0yMPW52Q/icon-64.png
-// @version 1.1
+// @version 1.2
 // @license MIT
 // @match *://*/*
 // @grant none
@@ -33,10 +33,13 @@ const CONTROL_CONFIG = [
 
 let settings = { ...DEFAULT_SETTINGS };
 let compatibilityMode = false;
+let showFullscreenGUI = false;
+let workOnImages = true;
 let profiles = { Default: { ...DEFAULT_SETTINGS } };
 let currentProfile = "Default";
 let panel;
 let panelContent;
+let panelOpen = false;
 let filterElement;
 let observer;
 const observedRoots = new WeakSet();
@@ -46,8 +49,10 @@ function loadSavedState() {
         const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
         if (saved && saved.profiles && typeof saved.profiles === "object") {
             profiles = saved.profiles;
-            if (!profiles.Default) profiles.Default = { ...DEFAULT_SETTINGS };
+            if (!profiles.Default || typeof profiles.Default !== "object") profiles.Default = { ...DEFAULT_SETTINGS };
             compatibilityMode = saved.compatibilityMode === true;
+            showFullscreenGUI = saved.showFullscreenGUI === true;
+            workOnImages = saved.workOnImages !== false;
             currentProfile = profiles[saved.currentProfile] ? saved.currentProfile : "Default";
             settings = { ...DEFAULT_SETTINGS, ...profiles[currentProfile] };
         }
@@ -61,7 +66,9 @@ function saveState() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
             profiles,
             currentProfile,
-            compatibilityMode
+            compatibilityMode,
+            showFullscreenGUI,
+            workOnImages
         }));
     } catch (error) {
         // Storage can be unavailable on restricted pages.
@@ -131,10 +138,31 @@ function setElementFilter(element) {
     }
 }
 
-function scanMedia(root, includeShadowRoots = compatibilityMode) {
-    if (root.matches && root.matches("video, img")) setElementFilter(root);
+function mediaSelector() {
+    return workOnImages ? "video, img" : "video";
+}
+
+function removeImageFilters(root = document, includeShadowRoots = compatibilityMode) {
+    const removeFilter = image => {
+        const filter = `brightness(${settings.brightness}) contrast(${settings.contrast}) saturate(${settings.saturate}) url(#vividness-filter)`;
+        if (image.style.getPropertyValue("filter") === filter) image.style.removeProperty("filter");
+        if (image.style.getPropertyValue("-webkit-filter") === filter) image.style.removeProperty("-webkit-filter");
+    };
+    if (root.matches && root.matches("img")) removeFilter(root);
     if (!root.querySelectorAll) return;
-    root.querySelectorAll("video, img").forEach(setElementFilter);
+    root.querySelectorAll("img").forEach(removeFilter);
+    if (includeShadowRoots) {
+        root.querySelectorAll("*").forEach(element => {
+            if (element.shadowRoot) removeImageFilters(element.shadowRoot, true);
+        });
+    }
+}
+
+function scanMedia(root, includeShadowRoots = compatibilityMode) {
+    const selector = mediaSelector();
+    if (root.matches && root.matches(selector)) setElementFilter(root);
+    if (!root.querySelectorAll) return;
+    root.querySelectorAll(selector).forEach(setElementFilter);
     if (includeShadowRoots) {
         root.querySelectorAll("*").forEach(element => {
             if (element.shadowRoot) {
@@ -175,9 +203,17 @@ function updateProfileOptions() {
     panelContent.querySelector("#vividness-delete-profile").disabled = currentProfile === "Default";
 }
 
+const vividnessPolicy = window.trustedTypes && window.trustedTypes.createPolicy
+    ? window.trustedTypes.createPolicy('vividnessHtmlPolicy', { createHTML: (string) => string })
+    : { createHTML: (string) => string };
+
 function buildPanel() {
     panel = document.createElement("div");
-    panel.style.cssText = "position:fixed;top:20px;right:20px;z-index:2147483647;display:none";
+    panel.style.cssText = "position:fixed;inset:auto;margin:0;top:20px;right:20px;z-index:2147483647";
+    panel.style.setProperty("pointer-events", "auto", "important");
+    panel.style.setProperty("user-select", "auto", "important");
+    panel.tabIndex = -1;
+    if ("showPopover" in HTMLElement.prototype) panel.setAttribute("popover", "manual");
     const shadow = panel.attachShadow({ mode: "open" });
     const rows = CONTROL_CONFIG.map(({ key, label, min, max, step }) => `
         <label class="control" for="${key}-range">
@@ -186,7 +222,7 @@ function buildPanel() {
             <input id="${key}-number" type="number" min="${min}" max="${max}" step="${step}" aria-label="${label} value">
         </label>`).join("");
 
-    shadow.innerHTML = `
+    shadow.innerHTML = vividnessPolicy.createHTML(`
         <style>
             :host { color-scheme: dark; font: 13px/1.35 system-ui, sans-serif; }
             * { box-sizing: border-box; }
@@ -212,6 +248,8 @@ function buildPanel() {
             <header><span>Vividness</span><button class="close" id="vividness-close" type="button" aria-label="Close" title="Close">×</button></header>
             <div>${rows}</div>
             <label class="compatibility"><input id="vividness-compatibility" type="checkbox"> Compatibility Mode</label>
+            <label class="compatibility"><input id="vividness-fullscreen" type="checkbox"> Show GUI on Fullscreen Video Mode</label>
+            <label class="compatibility"><input id="vividness-images" type="checkbox"> Work on Images</label>
             <div class="profiles">
                 <select id="vividness-profile" aria-label="Profile"></select>
                 <button id="vividness-delete-profile" type="button" title="Delete profile" aria-label="Delete profile">Delete</button>
@@ -220,7 +258,8 @@ function buildPanel() {
                 <input id="vividness-profile-name" type="text" maxlength="40" placeholder="Profile name" aria-label="Profile name">
                 <button id="vividness-save-profile" type="button">Save</button>
             </div>
-        </section>`;
+        </section>`);
+
     panelContent = shadow;
     document.body.appendChild(panel);
 
@@ -251,11 +290,24 @@ function buildPanel() {
         saveState();
         scanMedia(document, true);
     });
+    shadow.querySelector("#vividness-fullscreen").addEventListener("change", event => {
+        showFullscreenGUI = event.target.checked;
+        updatePanelVisibility();
+        saveState();
+    });
+    shadow.querySelector("#vividness-images").addEventListener("change", event => {
+        workOnImages = event.target.checked;
+        if (!workOnImages) removeImageFilters();
+        applyFilters();
+        saveState();
+    });
     shadow.querySelector("#vividness-profile").addEventListener("change", event => loadProfile(event.target.value));
     shadow.querySelector("#vividness-save-profile").addEventListener("click", saveProfile);
     shadow.querySelector("#vividness-delete-profile").addEventListener("click", deleteProfile);
     shadow.querySelector("#vividness-close").addEventListener("click", togglePanel);
     shadow.querySelector("#vividness-compatibility").checked = compatibilityMode;
+    shadow.querySelector("#vividness-fullscreen").checked = showFullscreenGUI;
+    shadow.querySelector("#vividness-images").checked = workOnImages;
     updateControlValues();
     updateProfileOptions();
 }
@@ -292,7 +344,26 @@ function deleteProfile() {
 }
 
 function togglePanel() {
-    panel.style.display = panel.style.display === "none" ? "block" : "none";
+    if (isFullscreen() && !showFullscreenGUI) return;
+    panelOpen = !panelOpen;
+    updatePanelVisibility();
+    if (panelOpen && isFullscreen() && showFullscreenGUI) {
+        panelContent.querySelector("#brightness-range").focus({ preventScroll: true });
+    }
+}
+
+function isFullscreen() {
+    return Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+}
+
+function updatePanelVisibility() {
+    const visible = panelOpen && (!isFullscreen() || showFullscreenGUI);
+    if ("showPopover" in panel) {
+        if (visible && !panel.matches(":popover-open")) panel.showPopover();
+        if (!visible && panel.matches(":popover-open")) panel.hidePopover();
+    } else {
+        panel.style.display = visible ? "block" : "none";
+    }
 }
 
 function cycleProfile(direction) {
@@ -307,7 +378,7 @@ function initialize() {
     buildPanel();
     observer = new MutationObserver(records => {
         records.forEach(record => {
-            if (record.type === "attributes" && record.target.matches("video, img")) {
+            if (record.type === "attributes" && record.target.matches(mediaSelector())) {
                 setElementFilter(record.target);
             }
             record.addedNodes.forEach(node => {
@@ -319,18 +390,52 @@ function initialize() {
     scanMedia(document);
     applyFilters();
 
+    document.addEventListener("fullscreenchange", updatePanelVisibility);
+    document.addEventListener("webkitfullscreenchange", updatePanelVisibility);
+
     window.addEventListener("keydown", event => {
-        if (event.key === "F8" || (event.altKey && event.key === "?")) {
-            event.preventDefault();
-            togglePanel();
-        } else if (event.altKey && event.key === ">") {
-            event.preventDefault();
-            cycleProfile(1);
-        } else if (event.altKey && event.key === "<") {
-            event.preventDefault();
-            cycleProfile(-1);
+        const path = event.composedPath();
+        const target = path[0];
+        if (path.includes(panel)) {
+            event.stopImmediatePropagation();
+            return;
         }
-    });
+        if (event.isComposing || (target instanceof HTMLElement &&
+            (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)))) return;
+
+        let action;
+        if (event.code === "F8" && event.altKey && event.shiftKey && !event.ctrlKey && !event.metaKey) {
+            action = () => loadDefaultProfile();
+        } else if (event.code === "F8" && event.altKey && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+            action = () => togglePanel();
+        } else if (event.code === "F8" && !event.altKey && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+            action = () => togglePanel();
+        } else if (event.code === "F7" && event.altKey && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+            action = () => cycleProfile(1);
+        } else if (event.code === "F6" && event.altKey && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+            action = () => cycleProfile(-1);
+        }
+
+        if (action) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            action();
+        }
+    }, true);
+}
+
+function loadDefaultProfile() {
+    if (profiles.Default && typeof profiles.Default === "object") {
+        loadProfile("Default");
+    } else {
+        profiles.Default = { ...DEFAULT_SETTINGS };
+        currentProfile = "Default";
+        settings = { ...DEFAULT_SETTINGS };
+        updateControlValues();
+        updateProfileOptions();
+        applyFilters();
+        saveState();
+    }
 }
 
 if (document.body) initialize();
