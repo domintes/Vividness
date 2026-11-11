@@ -15,4 +15,9 @@ When the fullscreen GUI is enabled, it opens as a modal overlay so the controls 
 
 `Work on Images` is enabled by default. Turn it off to apply Vividness to videos only.
 
-Adjustment controls use zero-centered values from -100 to 100 (Gamma uses 0.00 to 3.00). Enable `Extend default limits` to expand the standard controls to -500 through 500 and Gamma to 0.00 through 10.00. Saved profile names in the profile list include a summary of their property values.
+Adjustment controls use zero-centered values from -100 to 100 (Gamma uses 0.00 to 3.00). Sliders use a cool-to-warm gradient in both modes. Enable `Extended Limits` to expand the controls. To customize a parameter's extended range, edit its `extendedMin` and `extendedMax` values in `CONTROL_CONFIG` in `Vividness.user.js` (for example, `brightness` is set to -500 through 500 and Gamma to 0.00 through 10.00). Saved profile names in the profile list include a summary of their property values.
+
+## Vividness GUI Colors:
+	- GUI Background Color: #202523
+	- Input Background Color: #2f3733 
+	- Border Color: #5f6963

@@ -24,12 +24,12 @@ const DEFAULT_SETTINGS = {
     gamma: 1
 };
 const CONTROL_CONFIG = [
-    { key: "brightness", symbol: "☀", label: "Brightness", step: 1 },
-    { key: "contrast", symbol: "◑", label: "Contrast", step: 1 },
-    { key: "saturate", symbol: "🎨︎", label: "Saturation", step: 1 },
-    { key: "temperature", symbol: "🌡︎", label: "Temperature", step: 1 },
-    { key: "gamma", symbol: "☣︎", label: "Gamma", step: 0.01 },
-    { key: "sharpness", symbol: "⛆", label: "Sharpness", step: 1 }
+    { key: "brightness", symbol: "☀", label: "Brightness", step: 1, min: -100, max: 100, extendedMin: -500, extendedMax: 500 },
+    { key: "contrast", symbol: "◑", label: "Contrast", step: 1, min: -100, max: 100, extendedMin: -500, extendedMax: 500 },
+    { key: "saturate", symbol: "🎨︎", label: "Saturation", step: 1, min: -100, max: 100, extendedMin: -500, extendedMax: 500 },
+    { key: "temperature", symbol: "🌡︎", label: "Temperature", step: 1, min: -100, max: 100, extendedMin: -500, extendedMax: 500 },
+    { key: "gamma", symbol: "☣︎", label: "Gamma", step: 0.01, min: 0, max: 3, extendedMin: 0, extendedMax: 10 },
+    { key: "sharpness", symbol: "⛆", label: "Sharpness", step: 1, min: -100, max: 100, extendedMin: -500, extendedMax: 500 }
 ];
 const BUILT_IN_PROFILES = {
     Default: { ...DEFAULT_SETTINGS },
@@ -233,8 +233,14 @@ function formatSettingValue(key, value) {
 }
 
 function getControlLimits(key) {
-    if (key === "gamma") return { min: 0, max: extendedLimits ? 10 : 3 };
-    return { min: extendedLimits ? -500 : -100, max: extendedLimits ? 500 : 100 };
+    const control = CONTROL_CONFIG.find(item => item.key === key);
+    return extendedLimits
+        ? { min: control.extendedMin, max: control.extendedMax }
+        : { min: control.min, max: control.max };
+}
+
+function getControlTrackGradient() {
+    return "linear-gradient(to right, rgba(56, 189, 248, 0.15) 0%, rgba(129, 140, 248, 0.65) 22%, rgba(182, 212, 124, 0.85) 50%, rgba(250, 204, 21, 0.85) 70%, rgba(249, 115, 22, 0.65) 85%, rgba(239, 68, 68, 0.15) 100%)";
 }
 
 function clampSettings(values) {
@@ -256,6 +262,7 @@ function updateControlLimits(clampValues = false) {
         const number = panelContent.querySelector(`#${key}-number`);
         range.min = number.min = min;
         range.max = number.max = max;
+        range.style.setProperty("--range-track", getControlTrackGradient());
     });
     if (clampValues) settings = clampSettings(settings);
     updateControlValues();
@@ -316,7 +323,7 @@ shadow.innerHTML = vividnessPolicy.createHTML(`
 }
 
 .panel {
-    width: 360px;
+    width: 408px;
     max-width: calc(100vw - 32px);
     padding: 14px;
     color: #f4f4f2;
@@ -392,7 +399,39 @@ button:disabled {
 
 input[type=range] {
     width: 100%;
-    accent-color: #b6d47c;
+    height: 18px;
+    appearance: none;
+    background: transparent;
+}
+
+input[type=range]::-webkit-slider-runnable-track {
+    height: 6px;
+    background: var(--range-track);
+    border-radius: 999px;
+}
+
+input[type=range]::-moz-range-track {
+    height: 6px;
+    background: var(--range-track);
+    border-radius: 999px;
+}
+
+input[type=range]::-webkit-slider-thumb {
+    width: 14px;
+    height: 14px;
+    margin-top: -4px;
+    appearance: none;
+    background: #b6d47c;
+    border: 2px solid #202523;
+    border-radius: 50%;
+}
+
+input[type=range]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: #b6d47c;
+    border: 2px solid #202523;
+    border-radius: 50%;
 }
 
 input[type=number] {
@@ -463,10 +502,10 @@ input[type=text] {
     input[type=number] {
         width: 54px;
     }
-    
-    input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { 
-        -webkit-appearance: none; 
-        margin: 0; 
+
+    input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
     }
 
 }
