@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name Vividness
+// @name Vividness (Testo 1.4)
 // @author Domintes
 // @namespace https://github.com/Domintes
 // @icon https://i.ibb.co/0yMPW52Q/icon-64.png
-// @version 1.3
+// @version 1.4
 // @license MIT
 // @match *://*/*
 // @grant none
@@ -303,37 +303,186 @@ function buildPanel() {
         </label>`;
     }).join("");
 
-    shadow.innerHTML = vividnessPolicy.createHTML(`
-        <style>
-            :host { color-scheme: dark; font: 13px/1.35 system-ui, sans-serif; pointer-events: auto !important; }
-            * { box-sizing: border-box; }
-            .panel { width: 360px; max-width: calc(100vw - 32px); padding: 14px; color: #f4f4f2; background: #202523; border: 1px solid #59615c; border-radius: 8px; box-shadow: 0 8px 28px #0008; }
-            header, .profiles, .profile-actions { display: flex; align-items: center; gap: 8px; }
-            header { justify-content: space-between; margin-bottom: 12px; font-size: 15px; font-weight: 650; }
-            button, select, input[type=number], input[type=text] { min-height: 28px; color: inherit; background: #303733; border: 1px solid #606963; border-radius: 4px; font: inherit; }
-            button { padding: 4px 8px; cursor: pointer; }
-            button:disabled { opacity: .45; cursor: default; }
-            .close { width: 30px; padding: 3px; font-size: 18px; }
-            .control { display: grid; grid-template-columns: 118px minmax(50px, 1fr) 68px 28px; align-items: center; gap: 8px; min-height: 32px; }
-            input[type=range] { width: 100%; accent-color: #b6d47c; }
-            input[type=number] { width: 68px; padding: 3px 5px; }
-            .reset { width: 28px; padding: 3px 0; }
-            .compatibility { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-top: 1px solid #4a524d; margin-top: 8px; }
-            .compatibility input { accent-color: #b6d47c; }
-            .profiles { border-top: 1px solid #4a524d; padding-top: 10px; }
-            select { min-width: 0; flex: 1; padding: 3px 6px; }
-            .profile-actions { margin-top: 8px; }
-            input[type=text] { min-width: 0; flex: 1; padding: 4px 7px; }
-            @media (max-width: 420px) { .panel { width: calc(100vw - 24px); } .control { grid-template-columns: 102px minmax(40px, 1fr) 64px 28px; gap: 6px; } input[type=number] { width: 64px; } }
-        </style>
+shadow.innerHTML = vividnessPolicy.createHTML(`
+<style>
+:host {
+    color-scheme: dark;
+    font: 13px/1.35 system-ui, sans-serif;
+    pointer-events: auto !important;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+.panel {
+    width: 360px;
+    max-width: calc(100vw - 32px);
+    padding: 14px;
+    color: #f4f4f2;
+    background: #202523;
+    border: 1px solid #59615c;
+    border-radius: 8px;
+    box-shadow: 0 8px 28px #0008;
+}
+
+header,
+.vividness-profiles-select-section,
+.profile-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+header {
+    justify-content: space-between;
+    margin-bottom: 12px;
+    font-size: 15px;
+    font-weight: 650;
+}
+
+button,
+select,
+input[type=number],
+input[type=text] {
+    min-height: 28px;
+    color: inherit;
+    background: #303733;
+    border: 1px solid #606963;
+    border-radius: 4px;
+    font: inherit;
+}
+
+button {
+    padding: 4px 8px;
+    cursor: pointer;
+}
+
+button:disabled {
+    opacity: .45;
+    cursor: default;
+}
+
+.vividness-close-button {
+    padding: 4px 8px;
+    font-size: 18px;
+    color: #ff5353b7;
+    background-color: #ff53531a;
+    border: 1px solid #ff535338;
+    transition: all 0.3s;
+}
+
+.vividness-close-button:hover {
+    color: #ff5353e7;
+    background-color: #ff535348;
+    border: 1px solid #ff53539c;
+}
+
+.vividness-close-button:focus, .vividness-close-button:focus-within, .vividness-close-button:focus-visible {
+    outline: none;
+}
+
+.control {
+    display: grid;
+    grid-template-columns: 118px minmax(50px, 1fr) 54px 28px;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+}
+
+input[type=range] {
+    width: 100%;
+    accent-color: #b6d47c;
+}
+
+input[type=number] {
+    width: 54px;
+    padding: 3px 5px;
+}
+
+.reset {
+    width: 28px;
+    padding: 3px 0;
+}
+
+.vividness-checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    margin: 0;
+}
+
+.compatibility input {
+    accent-color: #b6d47c;
+}
+
+.vividness-extended-limits-input {
+    border-top: 1px solid #4a524d;
+    border-bottom: 1px solid #4a524d;
+    padding: 12px 0;
+    margin: 12px 0;
+}
+
+.vividness-profiles-select-section {
+    padding-top: 4px;
+
+}
+
+select {
+    min-width: 0;
+    flex: 1;
+    padding: 3px 6px;
+}
+
+.profile-actions {
+    margin-top: 8px;
+}
+
+input[type=text] {
+    min-width: 0;
+    flex: 1;
+    padding: 4px 7px;
+}
+
+.vividness-checkbox-items-section {
+    margin: 12px 0;
+    border-top: 1px solid #4a524d;
+}
+
+@media (max-width: 420px) {
+    .panel {
+        width: calc(100vw - 24px);
+    }
+
+    .control {
+        grid-template-columns: 102px minmax(40px, 1fr) 64px 28px;
+        gap: 6px;
+    }
+
+    input[type=number] {
+        width: 54px;
+    }
+    
+    input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { 
+        -webkit-appearance: none; 
+        margin: 0; 
+    }
+
+}
+</style>
         <section class="panel" aria-label="Vividness controls">
-            <header><span>Vividness</span><button class="close" id="vividness-close" type="button" aria-label="Close" title="Close">×</button></header>
-            <div>${rows}</div>
-            <label class="compatibility"><input id="vividness-compatibility" type="checkbox"> Compatibility Mode</label>
-            <label class="compatibility"><input id="vividness-fullscreen" type="checkbox"> Show GUI on Fullscreen Video Mode</label>
-            <label class="compatibility"><input id="vividness-images" type="checkbox"> Work on Images</label>
-            <label class="compatibility"><input id="vividness-extended-limits" type="checkbox"> Extend default limits</label>
-            <div class="profiles">
+        <header><span>Vividness</span><button class="vividness-close-button" id="vividness-close" type="button" aria-label="Close" title="Close">✗</button></header>
+             <label class="vividness-checkbox-item vividness-extended-limits-input"><input id="vividness-extended-limits" type="checkbox"> Extended Limits</label>
+            <div class="vividness-parameters-range-section">
+                ${rows}
+            </div>
+            <div class="vividness-checkbox-items-section">
+                <label class="vividness-checkbox-item vividness-compatibility-mode-input"><input id="vividness-compatibility" type="checkbox"> Compatibility Mode</label>
+                <label class="vividness-checkbox-item vividness-fullscreen-mode-gui-input"><input id="vividness-fullscreen" type="checkbox"> Show GUI on Fullscreen Video Mode</label>
+                <label class="vividness-checkbox-item vividness-work-on-images-input"><input id="vividness-images" type="checkbox"> Work on Images</label>
+            </div>
+            <div class="vividness-profiles-select-section">
                 <select id="vividness-profile" aria-label="Profile"></select>
                 <button id="vividness-delete-profile" type="button" title="Delete profile" aria-label="Delete profile">Delete</button>
             </div>
